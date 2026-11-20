@@ -1,0 +1,103 @@
+-- Grupo 7 - Proyecto 7
+-- Ejecutar cada bloque EVALUATE por separado en la Vista de consultas DAX.
+-- Las medidas referenciadas deben existir en el modelo Power BI.
+
+-- Consulta 1: total de resenas por ciudad (COUNT)
+EVALUATE
+SUMMARIZECOLUMNS(
+    dim_business[city],
+    "TotalResenas", [Total Reseñas]
+)
+ORDER BY [TotalResenas] DESC
+
+-- Consulta 2: satisfaccion segun rango de precio (AVERAGE; relacion de variables)
+EVALUATE
+SUMMARIZECOLUMNS(
+    dim_business[price_range],
+    "CalificacionPromedio", [Calificación Promedio],
+    "TotalResenas", [Total Reseñas]
+)
+ORDER BY dim_business[price_range]
+
+-- Consulta 3: votos utiles por categoria (SUM)
+EVALUATE
+SUMMARIZECOLUMNS(
+    fact_review[category],
+    "VotosUtiles", [Votos Útiles Totales]
+)
+ORDER BY [VotosUtiles] DESC
+
+-- Consulta 4: proporcion de resenas positivas por categoria (CALCULATE y KPI)
+EVALUATE
+SUMMARIZECOLUMNS(
+    fact_review[category],
+    "PorcentajePositivas", [% Reseñas Positivas],
+    "TotalResenas", [Total Reseñas]
+)
+ORDER BY [PorcentajePositivas] DESC
+
+-- Consulta 5: satisfaccion por ano, trimestre, mes y dia
+EVALUATE
+SUMMARIZECOLUMNS(
+    dim_date[year],
+    dim_date[quarter],
+    dim_date[month_number],
+    dim_date[date],
+    "CalificacionPromedio", [Calificación Promedio]
+)
+ORDER BY dim_date[year], dim_date[quarter], dim_date[month_number], dim_date[date]
+
+-- Consulta 6: calificacion MTD para los 31 dias mas recientes
+EVALUATE
+TOPN(
+    31,
+    SUMMARIZECOLUMNS(
+        dim_date[date],
+        "CalificacionMTD", [Calificación MTD]
+    ),
+    dim_date[date], DESC
+)
+ORDER BY dim_date[date] DESC
+
+-- Consulta 7: calificacion YTD y cambio frente al mismo periodo del ano anterior
+EVALUATE
+SUMMARIZECOLUMNS(
+    dim_date[year],
+    dim_date[month_number],
+    "CalificacionYTD", [Calificación YTD],
+    "CambioInteranual", [Cambio Interanual de Calificación]
+)
+ORDER BY dim_date[year], dim_date[month_number]
+
+-- Consulta 8: ranking de restaurantes por volumen de resenas (RANKX)
+EVALUATE
+TOPN(
+    10,
+    SUMMARIZECOLUMNS(
+        dim_business[business_id],
+        dim_business[business_name],
+        "TotalResenas", [Total Reseñas],
+        "RankingResenas", [Ranking por Reseñas]
+    ),
+    [RankingResenas], ASC,
+    [TotalResenas], DESC,
+    dim_business[business_id], ASC
+)
+ORDER BY [RankingResenas], [TotalResenas] DESC
+
+-- Consulta 9: resenas con terminos de queja por categoria (SEARCH)
+EVALUATE
+SUMMARIZECOLUMNS(
+    fact_review[category],
+    "ResenasConQuejas", [Reseñas con Quejas]
+)
+ORDER BY [ResenasConQuejas] DESC
+
+-- Consulta 10: desviacion de calificaciones por categoria (STDEV.P)
+EVALUATE
+SUMMARIZECOLUMNS(
+    fact_review[category],
+    "DesviacionCalificaciones", [Desviación de Calificaciones],
+    "CalificacionPromedio", [Calificación Promedio]
+)
+ORDER BY [DesviacionCalificaciones] DESC

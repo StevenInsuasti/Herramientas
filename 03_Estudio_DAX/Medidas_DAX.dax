@@ -1,0 +1,105 @@
+Total Reseñas =
+COUNT(fact_review[stars])
+
+Calificación Promedio =
+AVERAGE(fact_review[stars])
+
+Votos Útiles Totales =
+SUM(fact_review[useful])
+
+% Reseñas Positivas =
+DIVIDE(
+    CALCULATE(
+        [Total Reseñas],
+        fact_review[sentiment_label] = "Positive"
+    ),
+    [Total Reseñas],
+    0
+)
+
+Calificación MTD =
+CALCULATE(
+    [Calificación Promedio],
+    DATESMTD(dim_date[date])
+)
+
+Calificación YTD =
+CALCULATE(
+    [Calificación Promedio],
+    DATESYTD(dim_date[date])
+)
+
+Cambio Interanual de Calificación =
+VAR CalificaciónActual = [Calificación Promedio]
+VAR CalificaciónAnterior =
+    CALCULATE(
+        [Calificación Promedio],
+        SAMEPERIODLASTYEAR(dim_date[date])
+    )
+RETURN
+    IF(
+        ISBLANK(CalificaciónActual) || ISBLANK(CalificaciónAnterior),
+        BLANK(),
+        CalificaciónActual - CalificaciónAnterior
+    )
+
+Ranking por Reseñas =
+RANKX(
+    ALL(dim_business),
+    [Total Reseñas],
+    [Total Reseñas],
+    DESC,
+    DENSE
+)
+
+Reseñas con Quejas =
+COUNTROWS(
+    FILTER(
+        fact_review,
+        SEARCH("bad", LOWER(fact_review[complaint_terms]), 1, 0) > 0
+            || SEARCH("slow", LOWER(fact_review[complaint_terms]), 1, 0) > 0
+            || SEARCH("cold", LOWER(fact_review[complaint_terms]), 1, 0) > 0
+            || SEARCH("rude", LOWER(fact_review[complaint_terms]), 1, 0) > 0
+            || SEARCH("dirty", LOWER(fact_review[complaint_terms]), 1, 0) > 0
+    )
+)
+
+Desviación de Calificaciones =
+STDEV.P(fact_review[stars])
+
+KPI Satisfacción =
+SWITCH(
+    TRUE(),
+    [Calificación Promedio] >= 4.5, "Excelente",
+    [Calificación Promedio] >= 3.5, "Aceptable",
+    "Por mejorar"
+)
+
+Es Top 10 Restaurante =
+VAR NegociosElegibles =
+    FILTER(
+        ALL(dim_business),
+        [Total Reseñas] >= 100
+    )
+VAR TopNegocios =
+    TOPN(
+        10,
+        NegociosElegibles,
+        [Calificación Promedio], DESC,
+        [Total Reseñas], DESC,
+        dim_business[business_id], ASC
+    )
+VAR NegocioActual = SELECTEDVALUE(dim_business[business_id])
+RETURN
+    IF(
+        ISBLANK(NegocioActual),
+        0,
+        IF(
+            CONTAINS(
+                TopNegocios,
+                dim_business[business_id], NegocioActual
+            ),
+            1,
+            0
+        )
+    )
